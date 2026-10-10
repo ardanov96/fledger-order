@@ -3,13 +3,25 @@
   'use strict';
   const baseURL = (location.origin && location.origin !== 'null') ? location.origin : 'http://localhost:8085';
 
+  let savedToken = '';
+  try {
+    savedToken = localStorage.getItem('fledger_order_token') || '';
+  } catch (e) {}
+
   function headers(extra) {
-    return Object.assign({
+    const h = Object.assign({
       'Content-Type': 'application/json',
       'X-Tenant-ID': '00000000-0000-0000-0000-000000000001',
       'X-Actor-Id': 'pwa-user',
     }, extra || {});
+
+    const tok = (global.Order && global.Order.token) || savedToken;
+    if (tok) {
+      h['Authorization'] = 'Bearer ' + tok;
+    }
+    return h;
   }
+
   async function call(method, path, body, extra) {
     const init = { method, headers: headers(extra) };
     if (body !== undefined) init.body = JSON.stringify(body);
@@ -23,7 +35,19 @@
 
   const Order = {
     baseURL,
-    login: (tid) => call('POST', '/v1/dev/login' + (tid ? '?tenant_id=' + tid : '')),
+    token: savedToken,
+    setToken: (tok) => {
+      savedToken = tok;
+      Order.token = tok;
+      try { localStorage.setItem('fledger_order_token', tok); } catch (e) {}
+    },
+    login: async (tid) => {
+      const res = await call('POST', '/v1/dev/login' + (tid ? '?tenant_id=' + tid : ''));
+      if (res && res.access_token) {
+        Order.setToken(res.access_token);
+      }
+      return res;
+    },
     listProducts: (cat) => call('GET', '/v1/order/products' + (cat ? '?category=' + cat : '')),
     createProduct: (body) => call('POST', '/v1/order/products', body),
     createPricing: (productId, body) => call('POST', '/v1/order/products/' + productId + '/pricing', body),
@@ -33,6 +57,7 @@
     getOrder: (id) => call('GET', '/v1/order/orders/' + id),
     evaluateCredit: (id) => call('POST', '/v1/order/orders/' + id + '/evaluate-credit'),
     overrideCredit: (id, body) => call('POST', '/v1/order/orders/' + id + '/override-credit', body),
+    dispatchFleet: (id) => call('POST', '/v1/order/orders/' + id + '/dispatch-fleet'),
     cancelOrder: (id) => call('POST', '/v1/order/orders/' + id + '/cancel'),
     outboxCounts: () => call('GET', '/v1/order/outbox/counts'),
   };

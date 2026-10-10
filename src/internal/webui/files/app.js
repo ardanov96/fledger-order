@@ -29,14 +29,16 @@
     $('submit-order').addEventListener('click', submitOrder);
     $('evaluate-credit').addEventListener('click', evaluateCredit);
     $('override-form').addEventListener('submit', (e) => { e.preventDefault(); doOverride(); });
-    refreshOutbox();
-    setInterval(refreshOutbox, 5000);
+
     try {
       const r = await Order.login();
-      $('who').textContent = 'Token expires ' + new Date(r.expires_at).toLocaleString('id-ID');
+      $('who').textContent = 'Token aktif (berakhir ' + new Date(r.expires_at).toLocaleString('id-ID') + ')';
     } catch (e) {
-      $('who').textContent = 'PWA ready (token required via dev login)';
+      $('who').textContent = 'PWA offline/dev mode: ' + (e.message || e);
     }
+    loadCatalog();
+    refreshOutbox();
+    setInterval(refreshOutbox, 5000);
   });
 
   async function loadCatalog() {
